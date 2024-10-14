@@ -24,8 +24,8 @@ location_12 = (37.7038900, 128.0316900, 113, 1.44)  # S4  '19845': location_12
 depths = (10, 20, 30)  # 각 센서의 깊이
 
 # 폴더 경로 및 파일 저장 경로
-input_folder = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\01.CRNPy\01.HC\HC_FDR"
-output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\01.CRNPy\01.HC\00.CRNPy_input\HC_FDR_input.xlsx"
+input_folder = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\01.FDR"
+output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_FDR_input.xlsx"
 
 # 파일 이름에 따라 location 매칭
 file_location_mapping = {
@@ -61,7 +61,7 @@ for file in os.listdir(input_folder):
         
         # 필요한 열 선택 및 이름 지정
         df_selected = df[['Timestamps', ' m3/m3 Water Content', ' m3/m3 Water Content.1', ' m3/m3 Water Content.2']].copy()  
-        df_selected.columns = ['Date', 'theta_v_1', 'theta_v_2', 'theta_v_3']
+        df_selected.columns = ['Date', 'theta_v_d1', 'theta_v_d2', 'theta_v_d3']
         
         # Date 열을 datetime 형식으로 변환
         df_selected['Date'] = pd.to_datetime(df_selected['Date'], errors='coerce')
@@ -81,16 +81,16 @@ for file in os.listdir(input_folder):
         if not location_found:
             raise ValueError(f"File {file} does not match any known location keys.")
         
-        # theta_v_1, theta_v_2, theta_v_3 데이터를 하나로 합치기 (long format)
+        # theta_v_d1, theta_v_d2, theta_v_d3 데이터를 하나로 합치기 (long format)
         df_long = pd.melt(df_selected, id_vars=['Date'],
-                          value_vars=['theta_v_1', 'theta_v_2', 'theta_v_3'],
+                          value_vars=['theta_v_d1', 'theta_v_d2', 'theta_v_d3'],
                           var_name='theta_v_source', value_name='theta_v')
 
-        # FDR_depth에 맞는 깊이를 할당 (theta_v_1은 10, theta_v_2는 30, theta_v_3은 70)
+        # 같은 로거에서 읽어온 토양수분 자료들을 각각 depths 순서에 맞게 할당하기(i.e. 홍천의 경우 theta_d_1은 10, theta_d_2는 20, theta_d_3은 30)
         df_long['FDR_depth'] = df_long['theta_v_source'].map({
-            'theta_v_1': depths[0],
-            'theta_v_2': depths[1],
-            'theta_v_3': depths[2]
+            'theta_v_d1': depths[0],
+            'theta_v_d2': depths[1],
+            'theta_v_d3': depths[2]
         })
 
         # 지점별 정보 추가

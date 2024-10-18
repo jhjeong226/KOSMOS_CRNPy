@@ -15,15 +15,25 @@ if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 #----------------------------------------------------------------------------------
 
+parameters_file =r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\Parameters.xlsx"
+df_params = pd.read_excel(parameters_file)
+lat = df_params['lat'].iloc[0]
+lon = df_params['lon'].iloc[0]
+N0_rdt = df_params['N0_rdt'].iloc[0]
+Pref = df_params['Pref'].iloc[0]
+Aref = df_params['Aref'].iloc[0]
+clay_content = df_params['clay_content'].iloc[0]
+soil_bulk_density = df_params['soil_bulk_density'].iloc[0]
+
 # Site specific setting (Suwon, Pyeonchang, Hongcheon, etc.) *Calibration 끝냈을 때 사용!
-lat = 37.7049111
-lon = 128.0316412
-Altitude = 444.3027
-soil_bulk_density = 1.44
-N0_rdt = 1757.8647
-Pref = 962.9302
-Aref = 12.5694
-clay_content = 0.35
+# lat = 37.7049111
+# lon = 128.0316412
+# # Altitude = 444.3027
+# soil_bulk_density = 1.44
+# N0_rdt = 1757.8647
+# Pref = 962.9302
+# Aref = 12.5694
+# clay_content = 0.35
 z_surface = 144 # Average depth in mm obtained from previous cell using crnpy.sensing_depth()
 z_subsurface = 350 # Arbitrary subsurface depth in mm
 
@@ -38,57 +48,33 @@ if df_crnp['timestamp'].isna().all():
     raise ValueError("All timestamp values are invalid. Please check the 'Timestamp' format in your CRNP data.")
 #----------------------------------------------------------------------------------
 
-
-
-#----------------------------------------------------------------------------------
-# Remove rows with incomplete intervals
-#df_crnp = crnpy.remove_incomplete_intervals(df_crnp, timestamp_col='timestamp', integration_time=3600, remove_first=True)
-
-# Fill missing timestamps to create a conplete record
-#df_crnp = crnpy.fill_missing_timestamps(df_crnp, timestamp_col='timestamp', freq='H', round_timestamp=True)
-#----------------------------------------------------------------------------------
-
-
-#----------------------------------------------------------------------------------
-# Flag and fill outliers
-# cols_counts = ['N_counts']
-# for col in cols_counts:
-#     # Find outliers
-#     idx_outliers = crnpy.is_outlier(df_crnp[col], method='scaled_mad', min_val=1000, max_val=2000)
-#     df_crnp.loc[idx_outliers, col] = np.nan
-
-    # Outlier 를 채울지 없앨지 
-    #df_crnp[col] = df_crnp[col].interpolate(method='linear', limit=3, limit_direction='both').round()
-    #df_crnp = df_crnp.dropna(subset=[col])
-
-#----------------------------------------------------------------------------------
-
-
 #----------------------------------------------------------------------------------
 # Compute total counts - from single detector
+def remove_outliers(df, column, threshold=3):
+    median = np.median(df[column])
+    mad = np.median(np.abs(df[column] - median))
+    mad_scaled = np.abs(df[column] - median) / (mad + 1e-6)  # Avoid division by zero
+    return df[mad_scaled < threshold]
+
 df_crnp['total_raw_counts'] = df_crnp['N_counts']#----------------------------------------------------------------------------------
+df_crnp = remove_outliers(df_crnp, 'total_raw_counts', threshold=3)
 
-
-#----------------------------------------------------------------------------------
 # Plot total counts
 # Create a new figure and plot the data
-# Plot total counts and save the plot as an image
-# plt.figure(figsize=(15, 7))
-# plt.plot(df_crnp['timestamp'], df_crnp['total_raw_counts'], label='Raw Counts', color='black', linewidth=.8)
-# plt.xlabel("Date")
-# plt.ylabel("Raw Neutron Counts")
-# plt.title('Total Raw Counts Over Time')
-# plt.savefig(os.path.join(output_folder, "total_raw_counts.png"))
-# plt.close()
-#----------------------------------------------------------------------------------
-
+plt.figure(figsize=(15,7))
+plt.plot(df_crnp['timestamp'], df_crnp['total_raw_counts'], label='Raw Counts', color='black', linewidth=.8)
+plt.xlabel("Date")
+plt.ylabel("Total Raw Counts")
+plt.legend()
+plt.title('Total Raw Counts Over Time')
+plt.savefig(os.path.join(output_folder, "Total_Raw_Counts_Over_Time.png"))
+plt.close()
 
 #----------------------------------------------------------------------------------
 # Neutron count correction
 # Define study start and end dates
 start_date = df_crnp.iloc[0]['timestamp']
 end_date = df_crnp.iloc[-1]['timestamp']
-
 
 #----------------------------------------------------------------------------------
 
@@ -155,9 +141,6 @@ plt.title('Raw and Corrected Counts')
 plt.savefig(os.path.join(output_folder, "raw_corrected_counts.png"))
 plt.close()
 #----------------------------------------------------------------------------------
-
-
-
 #----------------------------------------------------------------------------------
 
 # df를 일자별로 그룹핑하여 평균값 계산
@@ -214,7 +197,6 @@ plt.title('Daily Average Soil Water Storage')
 plt.savefig(os.path.join(output_folder, "daily_avg_soil_water_storage.png"))
 plt.close()
 #----------------------------------------------------------------------------------
-
 
 #----------------------------------------------------------------------------------
 # Estimate the uncertainty of the volumetric water content

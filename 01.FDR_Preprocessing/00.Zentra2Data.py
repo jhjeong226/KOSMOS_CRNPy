@@ -9,38 +9,19 @@ import re
 # location_3 = (lat_3, lon_3, dist_3, sbd_3)
 # depths = (depth_1, depth_2, depth_3)
 
-location_1 = (37.7050950, 128.0318270, 26, 1.44)  # E1    '19850': location_1,
-location_2 = (37.7052430, 128.0322080, 62, 1.44)  # E2    '19846': location_2,
-location_3 = (37.7055270, 128.0324520, 99, 1.44)  # E3    '19853': location_3,
-location_4 = (37.7057970, 128.0326820, 135, 1.44)  # E4   '19843': location_4,
-location_5 = (37.7057230, 128.0311750, 99, 1.44)  # N1    '05589': location_5,
-location_6 = (37.7058490, 128.0309820, 119, 1.44)  # N2   '19848': location_6,
-location_7 = (37.7049540, 128.0311020, 48, 1.44)  # W1    '19852': location_7,
-location_8 = (37.7048480, 128.0309160, 65, 1.44)  # W2    '19851': location_8,
-location_9 = (37.7046330, 128.0313980, 37, 1.44)  # S1    '19854': location_9,
-location_10 = (37.7042950, 128.0316150, 68, 1.44)  # S2   '19847': location_10,
-location_11 = (37.7040370, 128.0319370, 100, 1.44)  # S3  '19903': location_11,
-location_12 = (37.7038900, 128.0316900, 113, 1.44)  # S4  '19845': location_12
-depths = (10, 20, 30)  # 각 센서의 깊이
-
 # 폴더 경로 및 파일 저장 경로
-input_folder = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\01.FDR"
+input_folder = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\01.Zentra"
 output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_FDR_input.xlsx"
+geoinfo_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\geo_locations.xlsx"
 
-# 파일 이름에 따라 location 매칭
+depths = (10, 20, 30)
+
+geo_df = pd.read_excel(geoinfo_file, dtype={'loc_key':str})
+
+geo_df['loc_key'] = geo_df['loc_key'].astype(str)
 file_location_mapping = {
-    '19850': location_1,
-    '19846': location_2,
-    '19853': location_3,
-    '19843': location_4,
-    '05589': location_5,
-    '19848': location_6,
-    '19852': location_7,
-    '19851': location_8,
-    '19854': location_9,
-    '19847': location_10,
-    '19903': location_11,
-    '19845': location_12
+    str(row['loc_key']): (row['lat'], row['lon'], row['dist'], row['sbd'])
+    for idx, row in geo_df.iterrows()
 }
 
 all_data = []  # 결과를 저장할 리스트
@@ -51,7 +32,9 @@ for file in os.listdir(input_folder):
         file_path = os.path.join(input_folder, file)
 
         # 파일 이름에서 기호, 괄호 등을 제거하고 소문자로 변환
-        simplified_file_name = re.sub(r'[^\w\s]', '', file).lower()
+        # simplified_file_name = re.sub(r'[^\w\s]', '', file).lower()
+
+        # print("simple =", simplified_file_name)
 
         # 파일 읽기 (엑셀 또는 CSV에 따라 처리)
         if file.endswith('.xlsx'):
@@ -69,18 +52,20 @@ for file in os.listdir(input_folder):
         # 정각에만 해당하는 데이터 필터링 (분이 00인 데이터만 선택)
         df_selected = df_selected[df_selected['Date'].dt.minute == 0]
         
-        # 파일 이름에서 location 매칭
-        location_found = False
-        for location_key, location_info in file_location_mapping.items():
-            if location_key in simplified_file_name:  # 파일 이름이 location과 일치하는지 확인
-                lat, lon, dist, bulk_density = location_info
-                location_found = True
-                break  # 해당 location이 매칭되면 루프를 종료
-        
-        # location 매칭 실패 시 오류 발생
-        if not location_found:
-            raise ValueError(f"File {file} does not match any known location keys.")
-        
+        # 파일 이름에서 loc_key 추출 (파일 이름에 19850 같은 숫자가 있으므로 해당 부분 추출)
+        loc_key_match = re.search(r'\((z6-)?(\d+)\)', file)  # z6- 앞에 올 수 있는 형식 처리
+        if loc_key_match:
+            loc_key = loc_key_match.group(2)  # 그룹 2는 숫자만 추출
+        else:
+            raise ValueError(f"File {file} does not match any known loc_key.")
+
+        # loc_key가 문자열로 변환되었는지 확인 후 매칭
+        if loc_key not in file_location_mapping:
+            raise ValueError(f"File {file} has loc_key {loc_key}, which does not match any known loc_key.")
+
+        # location 매칭
+        lat, lon, dist, bulk_density = file_location_mapping[loc_key]
+
         # theta_v_d1, theta_v_d2, theta_v_d3 데이터를 하나로 합치기 (long format)
         df_long = pd.melt(df_selected, id_vars=['Date'],
                           value_vars=['theta_v_d1', 'theta_v_d2', 'theta_v_d3'],

@@ -9,9 +9,9 @@ import pandas as pd
 from scipy.optimize import minimize
 
 # Define geographic coordinates: type Station information
-lat = 37.7049111
-lon = 128.0316412
-soil_bulk_density = 1.44
+# lat = 37.7049111
+# lon = 128.0316412
+# soil_bulk_density = 1.44
 clay_content = 0.35
 
 # Define Calibration period - Daily conversion 시 온전할 수 있도록, 시작시간과 끝 시간은 00시와 23시로 사용하는 것을 권장. 
@@ -28,6 +28,14 @@ def remove_outliers(df, column, threshold=3):
 ## =============================================================================================================================================
 ## =========================================================== Load Data  =============================================================
 ## 전처리가 완료된 데이터 읽어오기
+
+Geo_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\geo_locations.xlsx"
+df_geo = pd.read_excel(Geo_datapath)
+loc_key = 'CRNP'
+geo_info = df_geo[df_geo['id'] == loc_key].iloc[0]
+lat = geo_info['lat']
+lon = geo_info['lon']
+soil_bulk_density = geo_info['sbd']
 
 # Load the in-situ soil data
 FDR_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_FDR_input.xlsx"
@@ -136,6 +144,20 @@ N0_opt = result.x[0]
 print(f"Optimized N0: {N0_opt}")
 print(f"Pref : {Pref}")
 print(f"Aref : {Aref}")
+
+# ** 엑셀 파일에 저장 **
+parameters = {
+    "lat": [lat],
+    "lon": [lon],
+    "N0_rdt": [N0_opt],
+    "Pref": [Pref],
+    "Aref": [Aref],
+    "clay_content": [clay_content],
+    "soil_bulk_density": [soil_bulk_density]
+}
+df_parameters = pd.DataFrame(parameters)
+parameters_output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\Parameters.xlsx"
+df_parameters.to_excel(parameters_output_file, index=False)
 
 # Save the results with the estimated theta_v
 results['CRNP_SM'] = crnpy.counts_to_vwc(results['Daily_N'], N0_opt, bulk_density=soil_bulk_density, Wlat=0.03, Wsoc=0.01)

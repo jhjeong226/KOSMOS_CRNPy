@@ -24,11 +24,6 @@ for file in os.listdir(input_folder):
     if file.endswith('.xlsx') or file.endswith('.csv'):
         file_path = os.path.join(input_folder, file)
 
-        # 파일 이름에서 기호, 괄호 등을 제거하고 소문자로 변환
-        # simplified_file_name = re.sub(r'[^\w\s]', '', file).lower()
-
-        # print("simple =", simplified_file_name)
-
         # 파일 읽기 (엑셀 또는 CSV에 따라 처리)
         if file.endswith('.xlsx'):
             df = pd.read_excel(file_path, skiprows=2)  # 4행부터 데이터가 있으므로 2행 스킵

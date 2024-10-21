@@ -4,13 +4,14 @@ import re
 
 # 폴더 경로 및 파일 저장 경로
 input_folder = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\01.Zentra"
-output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_FDR_input.xlsx"
+output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_FDR_daily_avg.xlsx"
 geoinfo_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\geo_locations.xlsx"
 
-depths = (10, 20, 30)
+depths = (10, 20, 30)  # 센서 깊이 정의
 
-geo_df = pd.read_excel(geoinfo_file, dtype={'loc_key':str})
+geo_df = pd.read_excel(geoinfo_file, dtype={'loc_key': str})
 
+# loc_key 매핑
 geo_df['loc_key'] = geo_df['loc_key'].astype(str)
 file_location_mapping = {
     str(row['loc_key']): (row['lat'], row['lon'], row['dist'], row['sbd'])
@@ -24,27 +25,22 @@ for file in os.listdir(input_folder):
     if file.endswith('.xlsx') or file.endswith('.csv'):
         file_path = os.path.join(input_folder, file)
 
-        # 파일 이름에서 기호, 괄호 등을 제거하고 소문자로 변환
-        # simplified_file_name = re.sub(r'[^\w\s]', '', file).lower()
-
-        # print("simple =", simplified_file_name)
-
         # 파일 읽기 (엑셀 또는 CSV에 따라 처리)
         if file.endswith('.xlsx'):
             df = pd.read_excel(file_path, skiprows=2)  # 4행부터 데이터가 있으므로 2행 스킵
         elif file.endswith('.csv'):
             df = pd.read_csv(file_path, skiprows=2)  # CSV 파일인 경우도 2행 스킵
-        
+
         # 필요한 열 선택 및 이름 지정
         df_selected = df[['Timestamps', ' m3/m3 Water Content', ' m3/m3 Water Content.1', ' m3/m3 Water Content.2']].copy()
         df_selected.columns = ['Date', 'theta_v_d1', 'theta_v_d2', 'theta_v_d3']
-        
+
         # Date 열을 datetime 형식으로 변환
         df_selected['Date'] = pd.to_datetime(df_selected['Date'], errors='coerce')
-        
+
         # 정각에만 해당하는 데이터 필터링 (분이 00인 데이터만 선택)
         df_selected = df_selected[df_selected['Date'].dt.minute == 0]
-        
+
         # 파일 이름에서 loc_key 추출 (파일 이름에 19850 같은 숫자가 있으므로 해당 부분 추출)
         loc_key_match = re.search(r'\((z6-)?(\d+)\)', file)  # z6- 앞에 올 수 있는 형식 처리
         if loc_key_match:
@@ -64,7 +60,7 @@ for file in os.listdir(input_folder):
                           value_vars=['theta_v_d1', 'theta_v_d2', 'theta_v_d3'],
                           var_name='theta_v_source', value_name='theta_v')
 
-        # 같은 로거에서 읽어온 토양수분 자료들을 각각 depths 순서에 맞게 할당하기(i.e. 홍천의 경우 theta_d_1은 10, theta_d_2는 20, theta_d_3은 30)
+        # 같은 로거에서 읽어온 토양수분 자료들을 각각 depths 순서에 맞게 할당하기
         df_long['FDR_depth'] = df_long['theta_v_source'].map({
             'theta_v_d1': depths[0],
             'theta_v_d2': depths[1],
@@ -83,7 +79,14 @@ for file in os.listdir(input_folder):
 # 모든 데이터를 하나의 데이터프레임으로 병합
 result_df = pd.concat(all_data, ignore_index=True)
 
-# 결과를 Excel 파일로 저장
-result_df.to_excel(output_file, index=False)
+# Date 열에서 일자 정보만 추출
+result_df['Date'] = result_df['Date'].dt.date
 
-print(f"Data has been successfully saved to {output_file}")
+# 깊이별로 그룹핑하여 일별 평균 계산
+daily_avg_df = result_df.groupby(['Date', 'FDR_depth'])['theta_v'].mean().unstack()
+
+# 결과를 Excel 파일로 저장
+daily_avg_df.columns = ['10cm', '20cm', '30cm']  # 각 깊이에 해당하는 열 이름 변경
+daily_avg_df.to_excel(output_file, index=True)
+
+print(f"Daily average soil moisture data has been successfully saved to {output_file}")

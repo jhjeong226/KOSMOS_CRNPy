@@ -22,6 +22,7 @@ lon = df_params['lon'].iloc[0]
 N0_rdt = df_params['N0_rdt'].iloc[0]
 Pref = df_params['Pref'].iloc[0]
 Aref = df_params['Aref'].iloc[0]
+Iref = df_params['Iref'].iloc[0]
 clay_content = df_params['clay_content'].iloc[0]
 soil_bulk_density = df_params['soil_bulk_density'].iloc[0]
 
@@ -97,8 +98,8 @@ nmdb = crnpy.get_incoming_neutron_flux(start_date, end_date, station="ATHN", utc
 # Interpolate incoming neutron flux to match the timestamps in our station data
 df_crnp['incoming_flux'] = crnpy.interpolate_incoming_flux(nmdb['timestamp'], nmdb['counts'], df_crnp['timestamp'])
 # Compute correction factor for incoming neutron flux
-df_crnp['fi'] = crnpy.correction_incoming_flux(incoming_neutrons=df_crnp['incoming_flux'],
-                                          incoming_Ref=df_crnp['incoming_flux'].iloc[0])
+df_crnp['fi'] = crnpy.correction_incoming_flux(incoming_neutrons=df_crnp['incoming_flux'], incoming_Ref=Iref)
+
 #----------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------
 # Atmospheric correction

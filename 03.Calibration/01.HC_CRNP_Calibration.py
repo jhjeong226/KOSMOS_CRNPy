@@ -28,7 +28,6 @@ def remove_outliers(df, column, threshold=3):
 ## =============================================================================================================================================
 ## =========================================================== Load Data  =============================================================
 ## 전처리가 완료된 데이터 읽어오기
-
 Geo_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\geo_locations.xlsx"
 df_geo = pd.read_excel(Geo_datapath)
 loc_key = 'CRNP'
@@ -53,16 +52,21 @@ df_crnp['timestamp'] = pd.to_datetime(df_crnp['Timestamp'], errors='coerce')
 if df_crnp['timestamp'].isna().all():
     raise ValueError("All timestamp values are invalid. Please check the 'Timestamp' format in your CRNP data.")
 
-
 # Filter data within the calibration period
 idx_period = (df_crnp['timestamp'] >= calibration_start) & (df_crnp['timestamp'] <= calibration_end)
 df_crnp = df_crnp[idx_period]
 
 # We use only one detector
 df_crnp['total_raw_counts'] = df_crnp['N_counts']
-
+#df_crnp = remove_outliers(df_crnp, 'total_raw_counts', threshold=3)
 ## =============================================================================================================================================
 ## =========================================================== Neutron correction  =============================================================
+
+# Neutron flux correction
+nmdb = crnpy.get_incoming_neutron_flux(calibration_start, calibration_end, station="ATHN", utc_offset=9)
+df_crnp['incoming_flux'] = crnpy.interpolate_incoming_flux(nmdb['timestamp'], nmdb['counts'], df_crnp['timestamp'])
+Iref = df_crnp['incoming_flux'].mean()
+df_crnp['fi'] = crnpy.correction_incoming_flux(incoming_neutrons=df_crnp['incoming_flux'], incoming_Ref=Iref)
 
 # Atmospheric corrections
 df_crnp[['Pa', 'RH', 'Ta']] = df_crnp[['Pa', 'RH', 'Ta']].apply(pd.to_numeric, errors='coerce')
@@ -77,11 +81,6 @@ Aref = df_crnp['abs_humidity'].mean()
 df_crnp['fp'] = crnpy.correction_pressure(pressure=df_crnp['Pa'], Pref=Pref, L=130)
 df_crnp['fw'] = crnpy.correction_humidity(abs_humidity=df_crnp['abs_humidity'], Aref=Aref)
 
-# Neutron flux correction
-nmdb = crnpy.get_incoming_neutron_flux(calibration_start, calibration_end, station="ATHN", utc_offset=9)
-df_crnp['incoming_flux'] = crnpy.interpolate_incoming_flux(nmdb['timestamp'], nmdb['counts'], df_crnp['timestamp'])
-df_crnp['fi'] = crnpy.correction_incoming_flux(incoming_neutrons=df_crnp['incoming_flux'], incoming_Ref=df_crnp['incoming_flux'].iloc[0])
-
 # Apply correction factors to neutron counts
 df_crnp['total_corrected_neutrons'] = df_crnp['total_raw_counts'] * df_crnp['fw'] / (df_crnp['fp'] * df_crnp['fi'])
 
@@ -91,7 +90,6 @@ df_crnp = remove_outliers(df_crnp, 'total_corrected_neutrons', threshold=3)
 # Daily average of neutron counts
 df_crnp['date'] = df_crnp['timestamp'].dt.date
 daily_neutron_avg = df_crnp.groupby('date')['total_corrected_neutrons'].mean()
-
 
 ## ==========================================================================================================================================
 
@@ -124,8 +122,8 @@ for single_date in pd.date_range(start=calibration_start, end=calibration_end, f
             # Append the results for the day
             results = pd.concat([results, pd.DataFrame({
                 'date': [single_date],
-                'Field_SM': [Field_SM],
-                'Daily_N': [Daily_N]
+                'Daily_N': [Daily_N],
+                'Field_SM': [Field_SM]
             })])
 
 # Estimate lattice water (%) based on texture
@@ -144,6 +142,7 @@ N0_opt = result.x[0]
 print(f"Optimized N0: {N0_opt}")
 print(f"Pref : {Pref}")
 print(f"Aref : {Aref}")
+print(f"Iref : {Iref}")
 
 # ** 엑셀 파일에 저장 **
 parameters = {
@@ -152,6 +151,7 @@ parameters = {
     "N0_rdt": [N0_opt],
     "Pref": [Pref],
     "Aref": [Aref],
+    "Iref": [Iref],
     "clay_content": [clay_content],
     "soil_bulk_density": [soil_bulk_density]
 }

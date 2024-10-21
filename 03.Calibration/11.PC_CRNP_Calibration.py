@@ -15,8 +15,8 @@ from scipy.optimize import minimize
 clay_content = 0.35
 
 # Define Calibration period - Daily conversion 시 온전할 수 있도록, 시작시간과 끝 시간은 00시와 23시로 사용하는 것을 권장. 
-calibration_start = pd.to_datetime("2023-03-26 00:00")
-calibration_end = pd.to_datetime("2023-11-04 23:00")
+calibration_start = pd.to_datetime("2024-08-17 00:00")
+calibration_end = pd.to_datetime("2024-08-25 23:00")
 
 # Function to remove outliers using Median Absolute Deviation (MAD)
 def remove_outliers(df, column, threshold=3):
@@ -28,7 +28,7 @@ def remove_outliers(df, column, threshold=3):
 ## =============================================================================================================================================
 ## =========================================================== Load Data  =============================================================
 ## 전처리가 완료된 데이터 읽어오기
-Geo_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\01.Input\geo_locations.xlsx"
+Geo_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\02.PC\01.Input\geo_locations.xlsx"
 df_geo = pd.read_excel(Geo_datapath)
 loc_key = 'CRNP'
 geo_info = df_geo[df_geo['id'] == loc_key].iloc[0]
@@ -37,14 +37,14 @@ lon = geo_info['lon']
 soil_bulk_density = geo_info['sbd']
 
 # Load the in-situ soil data
-FDR_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_FDR_input.xlsx"
+FDR_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\02.PC\02.Output\01.Preprocessed\PC_FDR_input.xlsx"
 df_soil = pd.read_excel(FDR_datapath)
 
 # Create an ID for each soil profile using their respective latitude and longitude
 df_soil['ID'] = df_soil['latitude'].astype(str) + '_' + df_soil['longitude'].astype(str)
 
 # Load the CRNP station data
-CRNP_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\HC_CRNP_input.xlsx"
+CRNP_datapath = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\02.PC\02.Output\01.Preprocessed\PC_CRNP_input.xlsx"
 df_crnp = pd.read_excel(CRNP_datapath, names=['Timestamp', 'RN', 'Ta', 'RH', 'Pa', 'WS', 'WS_max', 'WD_VCT', 'N_counts'])
 df_crnp['timestamp'] = pd.to_datetime(df_crnp['Timestamp'], errors='coerce')
 
@@ -156,11 +156,11 @@ parameters = {
     "soil_bulk_density": [soil_bulk_density]
 }
 df_parameters = pd.DataFrame(parameters)
-parameters_output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\Parameters.xlsx"
+parameters_output_file = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\02.PC\02.Output\01.Preprocessed\PC_Parameters.xlsx"
 df_parameters.to_excel(parameters_output_file, index=False)
 
 # Save the results with the estimated theta_v
 results['CRNP_SM'] = crnpy.counts_to_vwc(results['Daily_N'], N0_opt, bulk_density=soil_bulk_density, Wlat=0.03, Wsoc=0.01)
-output_file_with_estimates = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\01.HC\02.Output\01.Preprocessed\Daily_Calibration.xlsx"
+output_file_with_estimates = r"C:\Users\USER\Desktop\Workbox\00.KIHS_CRNP\10.Data\99.Data\02.PC\02.Output\01.Preprocessed\PC_Daily_Calibration.xlsx"
 results.to_excel(output_file_with_estimates, index=False)
 print(f"Daily results with estimates saved to {output_file_with_estimates}")
